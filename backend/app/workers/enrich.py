@@ -12,7 +12,10 @@ from celery.signals import task_failure, task_prerun
 
 from app.core.celery_app import celery_app
 from app.core.db import SessionLocal
+from app.repos import company_repo
 from app.repos import job_repo
+from app.schemas.company import CompanyOut
+from app.services import company_cache
 from app.services.enrichment import enrich_domain
 from app.services.llm.base import LLMError
 from app.services.llm.factory import make_provider
@@ -38,6 +41,9 @@ def run_enrichment(self, job_id: str) -> dict:  # noqa: ANN001 — Celery binds 
             company_id = enrich_domain(db, domain, llm)
             job_repo.mark_succeeded(db, job_uuid, uuid.UUID(company_id))
             db.commit()
+            company = company_repo.get_by_id(db, uuid.UUID(company_id))
+            if company is not None:
+                company_cache.set_company(CompanyOut.model_validate(company))
             return {"job_id": job_id, "status": "succeeded", "company_id": company_id}
         except (LLMError, RuntimeError) as e:
             db.rollback()

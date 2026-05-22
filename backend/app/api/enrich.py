@@ -7,6 +7,7 @@ from app.core.db import get_db
 from app.repos import company_repo, job_repo
 from app.schemas.company import CompanyOut
 from app.schemas.job import EnrichRequest, JobOut
+from app.services import company_cache
 from app.utils.domain import canonicalize_domain
 from app.workers.enrich import run_enrichment
 
@@ -16,6 +17,28 @@ router = APIRouter(tags=["enrich"])
 @router.post("/enrich", status_code=status.HTTP_202_ACCEPTED, response_model=JobOut)
 def submit_enrichment(req: EnrichRequest, db: Session = Depends(get_db)) -> JobOut:
     domain = canonicalize_domain(str(req.url))
+    cached_company = company_cache.get_company(domain)
+    if cached_company is not None:
+        job = job_repo.create(db, domain=domain)
+        job_repo.mark_succeeded(db, job.id, cached_company.id)
+        db.commit()
+
+        out = JobOut.model_validate(job)
+        out.company = cached_company
+        return out
+
+    existing_company = company_repo.get_by_domain(db, domain)
+    if existing_company is not None:
+        existing_payload = CompanyOut.model_validate(existing_company)
+        company_cache.set_company(existing_payload)
+        job = job_repo.create(db, domain=domain)
+        job_repo.mark_succeeded(db, job.id, existing_company.id)
+        db.commit()
+
+        out = JobOut.model_validate(job)
+        out.company = existing_payload
+        return out
+
     job = job_repo.create(db, domain=domain)
     db.commit()
     # Hand off to Celery — the request path never blocks on scrape or LLM.
@@ -34,6 +57,7 @@ def get_enrichment(job_id: uuid.UUID, db: Session = Depends(get_db)) -> JobOut:
         company = company_repo.get_by_id(db, job.company_id)
         if company is not None:
             company_payload = CompanyOut.model_validate(company)
+            company_cache.set_company(company_payload)
 
     out = JobOut.model_validate(job)
     out.company = company_payload

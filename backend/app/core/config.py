@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     render_database_url: str | None = Field(default=None, alias="DATABASE_URL")
 
     redis_url: str = "redis://redis:6379/0"
+    company_cache_ttl_seconds: int = 86400
 
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"

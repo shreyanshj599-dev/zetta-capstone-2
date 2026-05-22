@@ -26,6 +26,12 @@ function scoreLabel(score) {
   return "Low fit";
 }
 
+function jobLabel(job) {
+  if (!job) return "idle";
+  if (job.status === "succeeded" && job.company && !job.started_at) return "cache hit";
+  return job.status;
+}
+
 export default function Home() {
   const [url, setUrl] = useState("https://anthropic.com");
   const [job, setJob] = useState(null);
@@ -37,6 +43,7 @@ export default function Home() {
 
   const currentCompany = job?.company || null;
   const jobIsActive = job && (job.status === "queued" || job.status === "running");
+  const currentJobLabel = jobLabel(job);
 
   const filteredCompanies = useMemo(() => companies, [companies]);
 
@@ -123,7 +130,7 @@ export default function Home() {
           </div>
           <div>
             <span>Current job</span>
-            <strong>{job?.status || "idle"}</strong>
+            <strong>{currentJobLabel}</strong>
           </div>
         </div>
       </section>
@@ -153,7 +160,7 @@ export default function Home() {
               <p className="eyebrow">Job</p>
               <h2>{job?.domain || "No active job"}</h2>
             </div>
-            <span className={statusClass(job?.status)}>{job?.status || "idle"}</span>
+            <span className={statusClass(job?.status)}>{currentJobLabel}</span>
           </div>
 
           {job ? (
