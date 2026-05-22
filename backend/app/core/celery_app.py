@@ -1,5 +1,3 @@
-import platform
-
 from celery import Celery
 
 from app.core.config import get_settings
@@ -22,9 +20,6 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=120,
     task_soft_time_limit=90,
+    worker_pool=settings.celery_worker_pool,
+    worker_concurrency=settings.celery_worker_concurrency,
 )
-
-# Windows gotcha: prefork pool spawns workers via fork(), which Windows lacks.
-# 'solo' is single-threaded but works on every OS.
-if platform.system() == "Windows":
-    celery_app.conf.worker_pool = "solo"
