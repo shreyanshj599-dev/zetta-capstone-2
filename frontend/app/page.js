@@ -34,10 +34,15 @@ function jobLabel(job) {
 
 export default function Home() {
   const [url, setUrl] = useState("https://anthropic.com");
+  const [batchUrls, setBatchUrls] = useState(
+    "https://stripe.com\nhttps://vercel.com\nhttps://linear.app\nhttps://supabase.com"
+  );
   const [job, setJob] = useState(null);
+  const [batchJobs, setBatchJobs] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [industry, setIndustry] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -93,6 +98,34 @@ export default function Home() {
     }
   }
 
+  async function submitBatch(event) {
+    event.preventDefault();
+    setError("");
+    setBatchLoading(true);
+
+    const urls = batchUrls
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    try {
+      const jobs = await Promise.all(
+        urls.map((item) =>
+          requestJson("/api/enrich", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ url: item })
+          })
+        )
+      );
+      setBatchJobs(jobs);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBatchLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadCompanies("all");
   }, []);
@@ -115,6 +148,30 @@ export default function Home() {
 
     return () => window.clearInterval(timer);
   }, [job?.id, job?.status, industry]);
+
+  useEffect(() => {
+    const activeJobs = batchJobs.filter((item) => item.status === "queued" || item.status === "running");
+    if (!activeJobs.length) {
+      if (batchJobs.some((item) => item.status === "succeeded")) loadCompanies(industry);
+      return;
+    }
+
+    const timer = window.setInterval(async () => {
+      const nextJobs = await Promise.all(
+        batchJobs.map((item) => {
+          if (item.status !== "queued" && item.status !== "running") return item;
+          return requestJson(`/api/enrich/${item.id}`).catch((err) => ({
+            ...item,
+            status: "failed",
+            error: err.message
+          }));
+        })
+      );
+      setBatchJobs(nextJobs);
+    }, 2500);
+
+    return () => window.clearInterval(timer);
+  }, [batchJobs, industry]);
 
   return (
     <main className="shell">
@@ -188,6 +245,44 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="parallel-section">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Parallel Test</p>
+            <h2>Submit Multiple URLs</h2>
+          </div>
+          <span className="status active">threads x 4</span>
+        </div>
+
+        <form className="batch-form" onSubmit={submitBatch}>
+          <label htmlFor="batchUrls">URLs</label>
+          <textarea
+            id="batchUrls"
+            value={batchUrls}
+            onChange={(event) => setBatchUrls(event.target.value)}
+            rows={4}
+            spellCheck="false"
+          />
+          <div className="action-row">
+            <button type="button" className="secondary" onClick={() => setBatchJobs([])}>
+              Clear jobs
+            </button>
+            <button type="submit" disabled={batchLoading}>
+              {batchLoading ? "Submitting" : "Run parallel test"}
+            </button>
+          </div>
+        </form>
+
+        <div className="job-grid">
+          {batchJobs.map((item) => (
+            <BatchJobCard key={item.id} job={item} />
+          ))}
+          {!batchJobs.length ? (
+            <p className="muted empty">Submit multiple uncached URLs to see concurrent queued/running jobs.</p>
+          ) : null}
+        </div>
+      </section>
+
       <section className="companies-section">
         <div className="section-header">
           <div>
@@ -224,6 +319,29 @@ export default function Home() {
         </div>
       </section>
     </main>
+  );
+}
+
+function BatchJobCard({ job }) {
+  const label = jobLabel(job);
+  return (
+    <article className="job-card">
+      <div className="card-top">
+        <div>
+          <h3>{job.domain}</h3>
+          <p>{job.id}</p>
+        </div>
+        <span className={statusClass(job.status)}>{label}</span>
+      </div>
+      <div className="job-times">
+        <span>Started: {formatDate(job.started_at)}</span>
+        <span>Finished: {formatDate(job.finished_at)}</span>
+      </div>
+      {job.company ? (
+        <p className="job-company">{job.company.name || job.company.domain}</p>
+      ) : null}
+      {job.error ? <p className="form-error">{job.error}</p> : null}
+    </article>
   );
 }
 

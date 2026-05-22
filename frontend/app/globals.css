@@ -30,7 +30,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -62,7 +63,8 @@ button.secondary {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -74,9 +76,16 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+textarea {
+  min-height: 120px;
+  padding: 12px;
+  resize: vertical;
 }
 
 label,
@@ -97,6 +106,7 @@ dt,
 
 .toolbar,
 .workspace,
+.parallel-section,
 .companies-section {
   margin-bottom: 18px;
 }
@@ -105,7 +115,7 @@ dt,
   display: flex;
   justify-content: space-between;
   gap: 18px;
-  align-items: end;
+  align-items: flex-end;
 }
 
 .eyebrow {
@@ -149,6 +159,7 @@ h3 {
 .metrics div,
 .result-panel,
 .enrich-form,
+.parallel-section,
 .companies-section {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -180,11 +191,13 @@ h3 {
 
 .enrich-form,
 .result-panel,
+.parallel-section,
 .companies-section {
   padding: 20px;
 }
 
-.enrich-form {
+.enrich-form,
+.batch-form {
   display: grid;
   gap: 12px;
 }
@@ -192,6 +205,12 @@ h3 {
 .submit-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.action-row {
+  display: flex;
+  justify-content: flex-end;
   gap: 10px;
 }
 
@@ -339,11 +358,43 @@ dd {
   margin-top: 18px;
 }
 
-.company-card {
+.job-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.company-card,
+.job-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 16px;
   background: #fff;
+}
+
+.job-card .card-top {
+  align-items: flex-start;
+}
+
+.job-card .card-top p {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-times {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.job-company {
+  margin: 12px 0 0;
+  font-weight: 800;
 }
 
 .card-top strong {
@@ -390,6 +441,10 @@ dd {
   .company-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .job-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -403,7 +458,13 @@ dd {
   .timeline,
   dl,
   .filter-row,
-  .company-grid {
+  .company-grid,
+  .job-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
